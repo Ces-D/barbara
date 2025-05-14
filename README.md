@@ -14,8 +14,27 @@ Barabara is a fast, developer-friendly tool that lets you quickly search and dis
 
 **Because every developer deserves their own Oracle.**
 
+## Help
+
+``` bash
+MDN Site Map Cli
+
+Usage: barbara <COMMAND>
+
+Commands:
+fuzzy Fuzzy search for a topic on the MDN website
+preview Generates a summary of a MDN page. Useful for quick reference.
+help Print this message or the help of the given subcommand(s)
+
+Options:
+-h, --help Print help
+```
 
 ## Installation
 
 This tool relies on [FZF](https://github.com/junegunn/fzf). Please make sure you have it installed before proceeding.
+You can install this tool using `cargo install barbara`
 
+## TODO
+
+- [ ] In development, add dev option for fzf preview
