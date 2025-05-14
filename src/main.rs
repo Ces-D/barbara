@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 
+mod cache;
 mod fuzzy;
 mod mdn;
 mod url_entry;
@@ -7,6 +8,7 @@ mod url_entry;
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
+    cache::spawn_cache_cleaner();
 
     match cli.command {
         Commands::Fuzzy { open_in_browser } => {
@@ -31,7 +33,7 @@ async fn main() {
             match mdn::request_page(&item).await {
                 Ok(page_content) => {
                     println!("{}", page_content);
-                                 }
+                }
                 Err(e) => eprintln!("Error fetching page: {}", e),
             }
         }
