@@ -9,7 +9,7 @@ pub fn fuzzy_search(items: Vec<String>) -> std::io::Result<String> {
         .arg("--input-label=Search")
         .arg("--color=bg+:black,fg+:white,hl+:yellow,preview-bg:235,preview-fg:white")
         .arg("--preview=barbara preview {}") // TODO: Went built this should call the PATH cmd
-        .arg("--preview-window=up:70%:wrap")
+        .arg("--preview-window=up:40%:wrap")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()?;

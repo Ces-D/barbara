@@ -16,7 +16,7 @@ Barabara is a fast, developer-friendly tool that lets you quickly search and dis
 
 ## Help
 
-``` bash
+```bash
 MDN Site Map Cli
 
 Usage: barbara <COMMAND>
@@ -30,6 +30,10 @@ Options:
 -h, --help Print help
 ```
 
+<p align="center">
+    <img src="./assets/fuzzy_display.png" width=640 />
+</p>
+
 ## Installation
 
 This tool relies on [FZF](https://github.com/junegunn/fzf). Please make sure you have it installed before proceeding.
@@ -38,3 +42,4 @@ You can install this tool using `cargo install barbara`
 ## TODO
 
 - [ ] In development, add dev option for fzf preview
+- [ ] Intercept empty selection to display a suggestion

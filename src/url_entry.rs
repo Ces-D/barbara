@@ -1,6 +1,8 @@
+use bincode::{Decode, Encode};
+
 /// An instance of the MDN site map
 /// Url entry. Contains url location, modification time, priority, update frequency.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Encode, Decode)]
 pub struct UrlEntry {
     /// URL of the page.
     pub loc: String,

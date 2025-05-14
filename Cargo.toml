@@ -1,6 +1,6 @@
 [package]
 name = "barbara"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 description = "A command-line tool for instantly surface matching MDN articles by keyword or partial phrase."
 repository = "https://github.com/Ces-D/barbara"
@@ -10,11 +10,19 @@ license = "Apache-2.0"
 
 
 [dependencies]
+bincode = { version = "2.0.1" }
 clap = { version = "4.5.38", features = ["derive"] }
 flate2 = "1.1.1"
+once_cell = "1.21.3"
 reqwest = "0.12.15"
 select = "0.6.1"
 serde = { version = "1.0.219", features = ["derive"] }
-tokio = { version = "1.45.0", features = ["macros", "rt", "rt-multi-thread"] }
+tokio = { version = "1.45.0", features = [
+  "fs",
+  "macros",
+  "rt",
+  "rt-multi-thread",
+  "time",
+] }
 webbrowser = "1.0.4"
 xml = "0.8.20"

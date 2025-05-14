@@ -1,6 +1,9 @@
 use std::io::{BufReader, Cursor};
 
-use crate::url_entry::{SiteMapElement, UrlEntry, UrlEntryBuilder};
+use crate::{
+    cache::{read_cache_async, write_to_cache_async},
+    url_entry::{SiteMapElement, UrlEntry, UrlEntryBuilder},
+};
 use flate2::read::GzDecoder;
 use reqwest::Result;
 use select::{
@@ -11,54 +14,69 @@ use xml::reader::XmlEvent;
 
 const MDN_SITE_MAP_URL: &str = "https://developer.mozilla.org/sitemaps/en-us/sitemap.xml.gz";
 
+/// Requests the MDN site map or reads from the cache if available.
 pub async fn request_site_map() -> Result<Vec<UrlEntry>> {
-    let client = reqwest::Client::new();
-    let response = client.get(MDN_SITE_MAP_URL).send().await?.bytes().await?;
-    let gz_decoder = GzDecoder::new(response.as_ref());
-    let reader = BufReader::new(gz_decoder);
+    let cache = read_cache_async().await.unwrap_or(None);
+    match cache {
+        Some(data) => {
+            println!("Cache found, using it");
+            Ok(data)
+        }
+        None => {
+            let client = reqwest::Client::new();
+            let response = client.get(MDN_SITE_MAP_URL).send().await?.bytes().await?;
+            let gz_decoder = GzDecoder::new(response.as_ref());
+            let reader = BufReader::new(gz_decoder);
 
-    let mut site_map: Vec<UrlEntry> = vec![];
+            let mut site_map: Vec<UrlEntry> = vec![];
 
-    let parser = xml::EventReader::new(reader);
-    let mut url_builder = UrlEntryBuilder::default();
+            let parser = xml::EventReader::new(reader);
+            let mut url_builder = UrlEntryBuilder::default();
 
-    for e in parser {
-        match e {
-            Ok(event) => match event {
-                XmlEvent::StartElement { name, .. } => {
-                    let local_name = name.local_name;
-                    if local_name == "url" {
-                        url_builder.set_element(SiteMapElement::Url);
-                    } else if local_name == "loc" {
-                        url_builder.set_element(SiteMapElement::Loc);
-                    } else if local_name == "lastmod" {
-                        url_builder.set_element(SiteMapElement::Lastmod);
-                    }
-                }
-                XmlEvent::EndElement { name } => {
-                    let local_name = name.local_name;
-                    if local_name == "url" {
-                        url_builder.set_element(SiteMapElement::Url);
-                        if let Ok(entry) = url_builder.build() {
-                            site_map.push(entry);
-                        } else {
-                            println!("Error building URL entry");
+            for e in parser {
+                match e {
+                    Ok(event) => match event {
+                        XmlEvent::StartElement { name, .. } => {
+                            let local_name = name.local_name;
+                            if local_name == "url" {
+                                url_builder.set_element(SiteMapElement::Url);
+                            } else if local_name == "loc" {
+                                url_builder.set_element(SiteMapElement::Loc);
+                            } else if local_name == "lastmod" {
+                                url_builder.set_element(SiteMapElement::Lastmod);
+                            }
                         }
-                    }
+                        XmlEvent::EndElement { name } => {
+                            let local_name = name.local_name;
+                            if local_name == "url" {
+                                url_builder.set_element(SiteMapElement::Url);
+                                if let Ok(entry) = url_builder.build() {
+                                    site_map.push(entry);
+                                } else {
+                                    println!("Error building URL entry");
+                                }
+                            }
+                        }
+                        XmlEvent::Characters(text) => {
+                            let trimmed_text = text.trim().to_string();
+                            if !trimmed_text.is_empty() {
+                                url_builder.set_text(trimmed_text);
+                            }
+                        }
+                        _ => continue,
+                    },
+                    Err(e) => println!("Error: {}", e),
                 }
-                XmlEvent::Characters(text) => {
-                    let trimmed_text = text.trim().to_string();
-                    if !trimmed_text.is_empty() {
-                        url_builder.set_text(trimmed_text);
-                    }
-                }
-                _ => continue,
-            },
-            Err(e) => println!("Error: {}", e),
+            }
+            let cloned_site_map = site_map.clone();
+            match write_to_cache_async(cloned_site_map).await {
+                Ok(_) => println!("Cache written successfully"),
+                Err(_) => println!("Error writing cache"),
+            }
+
+            Ok(site_map)
         }
     }
-
-    Ok(site_map)
 }
 
 pub struct PageContent {
