@@ -13,3 +13,9 @@ Barabara is a fast, developer-friendly tool that lets you quickly search and dis
 - 🧠 **Developer-First**: Built for CLI and app integrations to supercharge your workflow.
 
 **Because every developer deserves their own Oracle.**
+
+
+## Installation
+
+This tool relies on [FZF](https://github.com/junegunn/fzf). Please make sure you have it installed before proceeding.
+
