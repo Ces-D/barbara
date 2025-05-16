@@ -58,6 +58,12 @@ impl UrlEntryBuilder {
             Err(UrlEntryBuilderError::MissingClosingTag)
         }
     }
+
+    pub fn reset(&mut self) {
+        self.element = SiteMapElement::Url;
+        self.loc = None;
+        self.lastmod = None;
+    }
 }
 
 impl Default for UrlEntryBuilder {

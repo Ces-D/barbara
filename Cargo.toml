@@ -1,6 +1,6 @@
 [package]
 name = "barbara"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 description = "A command-line tool for instantly surface matching MDN articles by keyword or partial phrase."
 repository = "https://github.com/Ces-D/barbara"
