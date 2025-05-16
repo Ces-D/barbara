@@ -13,10 +13,45 @@ use select::{
 use xml::reader::XmlEvent;
 
 const MDN_SITE_MAP_URL: &str = "https://developer.mozilla.org/sitemaps/en-us/sitemap.xml.gz";
+/// All MDN docs start with this URL
+pub const BASE_URL: &str = "https://developer.mozilla.org/en-US/";
+
+// These are URLs or base URLs that we want to ignore when parsing the sitemap
+const IGNORE_URLS: [&str; 9] = [
+    "https://developer.mozilla.org/en-US/plus/**",
+    "https://developer.mozilla.org/en-US/curriculum/**",
+    "https://developer.mozilla.org/en-US/play/**",
+    "https://developer.mozilla.org/en-US/observatory/**",
+    "https://developer.mozilla.org/en-US/",
+    "https://developer.mozilla.org/en-US/404",
+    "https://developer.mozilla.org/en-US/about",
+    "https://developer.mozilla.org/en-US/advertising",
+    "https://developer.mozilla.org/en-US/blog/",
+];
+
+fn path_is_ignored(path: &str) -> bool {
+    let mut is_ignored = false;
+    for ignore_path in IGNORE_URLS.iter() {
+        if is_ignored {
+            break;
+        } else {
+            if ignore_path.ends_with("**") {
+                let ignore_path = &ignore_path[..ignore_path.len() - 2];
+                is_ignored = path.starts_with(ignore_path);
+            } else {
+                is_ignored = path == *ignore_path;
+            }
+        }
+    }
+    is_ignored
+}
 
 /// Requests the MDN site map or reads from the cache if available.
-pub async fn request_site_map() -> Result<Vec<UrlEntry>> {
-    let cache = read_cache_async().await.unwrap_or(None);
+pub async fn request_site_map(no_cache: bool) -> Result<Vec<UrlEntry>> {
+    let mut cache = None;
+    if !no_cache {
+        cache = read_cache_async().await.unwrap_or(None);
+    }
     match cache {
         Some(data) => {
             println!("Cache found, using it");
@@ -31,36 +66,42 @@ pub async fn request_site_map() -> Result<Vec<UrlEntry>> {
             let mut site_map: Vec<UrlEntry> = vec![];
 
             let parser = xml::EventReader::new(reader);
-            let mut url_builder = UrlEntryBuilder::default();
+            let mut path_builder = UrlEntryBuilder::default();
 
             for e in parser {
                 match e {
                     Ok(event) => match event {
                         XmlEvent::StartElement { name, .. } => {
                             let local_name = name.local_name;
-                            if local_name == "url" {
-                                url_builder.set_element(SiteMapElement::Url);
+                            if local_name == "path" {
+                                path_builder.set_element(SiteMapElement::Url);
                             } else if local_name == "loc" {
-                                url_builder.set_element(SiteMapElement::Loc);
+                                path_builder.set_element(SiteMapElement::Loc);
                             } else if local_name == "lastmod" {
-                                url_builder.set_element(SiteMapElement::Lastmod);
+                                path_builder.set_element(SiteMapElement::Lastmod);
                             }
                         }
                         XmlEvent::EndElement { name } => {
                             let local_name = name.local_name;
                             if local_name == "url" {
-                                url_builder.set_element(SiteMapElement::Url);
-                                if let Ok(entry) = url_builder.build() {
-                                    site_map.push(entry);
-                                } else {
-                                    println!("Error building URL entry");
+                                path_builder.set_element(SiteMapElement::Url);
+                                match path_builder.build() {
+                                    Ok(entry) => site_map.push(entry),
+                                    Err(e) => match e {
+                                        crate::url_entry::UrlEntryBuilderError::MissingLoc => continue, // This is most likely due to the url being ignored
+                                        crate::url_entry::UrlEntryBuilderError::MissingClosingTag => println!("Missing closing tag"),
+                                    },
                                 }
                             }
                         }
                         XmlEvent::Characters(text) => {
                             let trimmed_text = text.trim().to_string();
                             if !trimmed_text.is_empty() {
-                                url_builder.set_text(trimmed_text);
+                                if path_is_ignored(&trimmed_text) {
+                                    path_builder.reset();
+                                } else {
+                                    path_builder.set_text(trimmed_text);
+                                }
                             }
                         }
                         _ => continue,
@@ -69,9 +110,11 @@ pub async fn request_site_map() -> Result<Vec<UrlEntry>> {
                 }
             }
             let cloned_site_map = site_map.clone();
-            match write_to_cache_async(cloned_site_map).await {
-                Ok(_) => println!("Cache written successfully"),
-                Err(_) => println!("Error writing cache"),
+            if !no_cache {
+                match write_to_cache_async(cloned_site_map).await {
+                    Ok(_) => println!("Cache written successfully"),
+                    Err(_) => println!("Error writing cache"),
+                }
             }
 
             Ok(site_map)
@@ -105,9 +148,11 @@ pub struct Header {
     pub value: String,
 }
 
-pub async fn request_page(url: &str) -> Result<PageContent> {
+/// Requests the page html from the given URL, parses it, and condenses the information into a struct.
+/// The
+pub async fn request_page(path: &str) -> Result<PageContent> {
     let client = reqwest::Client::new();
-    let response = client.get(url).send().await?.bytes().await?;
+    let response = client.get(path).send().await?.bytes().await?;
     let reader = BufReader::new(Cursor::new(response));
     let document = Document::from_read(reader).unwrap();
 

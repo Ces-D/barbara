@@ -11,12 +11,18 @@ async fn main() {
     cache::spawn_cache_cleaner();
 
     match cli.command {
-        Commands::Fuzzy { open_in_browser } => {
+        Commands::Fuzzy {
+            open_in_browser,
+            no_cache,
+        } => {
             // Call the function to request the site map
-            match mdn::request_site_map().await {
+            match mdn::request_site_map(no_cache).await {
                 Ok(entries) => {
                     let selection = fuzzy::fuzzy_search(
-                        entries.iter().map(|entry| entry.loc.clone()).collect(),
+                        entries
+                            .iter()
+                            .map(|entry| entry.loc.replace(mdn::BASE_URL, ""))
+                            .collect(),
                     )
                     .unwrap();
                     if open_in_browser {
@@ -30,7 +36,12 @@ async fn main() {
         }
         Commands::Preview { item } => {
             // Call the function to request the page content
-            match mdn::request_page(&item).await {
+            let corrected_url = item
+                .starts_with(mdn::BASE_URL)
+                .then_some(item.to_string())
+                .unwrap_or_else(|| format!("{}{}", mdn::BASE_URL, item));
+
+            match mdn::request_page(&corrected_url).await {
                 Ok(page_content) => {
                     println!("{}", page_content);
                 }
@@ -58,6 +69,12 @@ enum Commands {
             help = "Open the selected url in the browser"
         )]
         open_in_browser: bool,
+        #[arg(
+            long,
+            default_value = "false",
+            help = "Dont read from the cache if it exists and don't write a cache file"
+        )]
+        no_cache: bool,
     },
     #[command(about = "Generates a summary of a MDN page. Useful for quick reference.")]
     Preview { item: String },

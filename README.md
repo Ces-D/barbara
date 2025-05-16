@@ -43,3 +43,5 @@ You can install this tool using `cargo install barbara`
 
 - [ ] In development, add dev option for fzf preview
 - [ ] Intercept empty selection to display a suggestion
+- [ ] Shorten the fzf input strings
+- [ ] Add an ignore list to the mdn site map 
