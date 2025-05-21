@@ -26,7 +26,11 @@ async fn main() {
                     )
                     .unwrap();
                     if open_in_browser {
-                        webbrowser::open(selection.as_str()).unwrap();
+                        let selection = format!("{}{}", mdn::BASE_URL, selection);
+                        match open::that(selection.as_str()) {
+                            Ok(_) => println!("Opening in browser: {}", selection),
+                            Err(e) => println!("Error opening in browser: {}", e),
+                        };
                     } else {
                         println!("{}", selection);
                     }
@@ -65,7 +69,7 @@ enum Commands {
         #[arg(
             short,
             long,
-            default_value = "true",
+            default_value = "false",
             help = "Open the selected url in the browser"
         )]
         open_in_browser: bool,
